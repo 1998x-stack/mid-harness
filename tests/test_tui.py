@@ -8,4 +8,5 @@ def test_rich_available():
 
 def test_tui_module_imports():
     from mid_harness.tui import run_tui_session
+
     assert run_tui_session is not None

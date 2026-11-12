@@ -7,54 +7,74 @@ from mid_harness.cli import parse_args, _run_one_shot
 
 
 def test_parse_args_one_shot():
-    with patch.object(sys, 'argv', ['mid-harness', 'Hello']):
+    with patch.object(sys, "argv", ["mid-harness", "Hello"]):
         args = parse_args()
-        assert args.prompt == 'Hello'
+        assert args.prompt == "Hello"
 
 
 def test_parse_args_no_prompt():
-    with patch.object(sys, 'argv', ['mid-harness']):
+    with patch.object(sys, "argv", ["mid-harness"]):
         args = parse_args()
         assert args.prompt is None
 
 
 def test_parse_args_with_options():
-    with patch.object(sys, 'argv', [
-        'mid-harness', 'Hello',
-        '--model', 'claude-opus',
-        '--workspace', '/tmp/project',
-        '--max-iterations', '10',
-        '--skills', 'files',
-    ]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "mid-harness",
+            "Hello",
+            "--model",
+            "claude-opus",
+            "--workspace",
+            "/tmp/project",
+            "--max-iterations",
+            "10",
+            "--skills",
+            "files",
+        ],
+    ):
         args = parse_args()
-        assert args.prompt == 'Hello'
-        assert args.model == 'claude-opus'
-        assert args.workspace == '/tmp/project'
+        assert args.prompt == "Hello"
+        assert args.model == "claude-opus"
+        assert args.workspace == "/tmp/project"
         assert args.max_iterations == 10
-        assert args.skills == 'files'
-        assert args.provider == 'deepseek'
-        assert args.api_base_url == 'https://api.deepseek.com/v1'
+        assert args.skills == "files"
+        assert args.provider == "deepseek"
+        assert args.api_base_url == "https://api.deepseek.com/v1"
 
 
 def test_parse_args_with_provider():
-    with patch.object(sys, 'argv', ['mid-harness', 'hi', '--provider', 'deepseek', '--api-base-url', 'https://api.deepseek.com/v1']):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "mid-harness",
+            "hi",
+            "--provider",
+            "deepseek",
+            "--api-base-url",
+            "https://api.deepseek.com/v1",
+        ],
+    ):
         args = parse_args()
-        assert args.provider == 'deepseek'
-        assert args.api_base_url == 'https://api.deepseek.com/v1'
+        assert args.provider == "deepseek"
+        assert args.api_base_url == "https://api.deepseek.com/v1"
 
 
 def test_parse_args_tui_flag():
-    with patch.object(sys, 'argv', ['mid-harness', '--tui']):
+    with patch.object(sys, "argv", ["mid-harness", "--tui"]):
         args = parse_args()
         assert args.tui is True
         assert args.prompt is None
 
 
 def test_parse_args_tui_with_prompt():
-    with patch.object(sys, 'argv', ['mid-harness', '--tui', 'hello']):
+    with patch.object(sys, "argv", ["mid-harness", "--tui", "hello"]):
         args = parse_args()
         assert args.tui is True
-        assert args.prompt == 'hello'
+        assert args.prompt == "hello"
 
 
 @pytest.mark.asyncio
@@ -64,17 +84,22 @@ async def test_run_one_shot_displays_iteration():
     class FakeLLM:
         async def generate_stream(self, messages, tools=None):
             from mid_harness._llm import LLMStreamChunk
+
             yield LLMStreamChunk(type="text_delta", content="Hello")
             yield LLMStreamChunk(type="text_delta", content=" world")
 
-    agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"))
+    agent = Agent(
+        prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp")
+    )
     agent._llm_provider = FakeLLM()
 
     args = Namespace(prompt="Hi")
     with patch("builtins.print") as mock_print:
         await _run_one_shot(args, agent)
 
-    printed = "".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
+    printed = "".join(
+        str(call.args[0]) for call in mock_print.call_args_list if call.args
+    )
     assert "Hello world" in printed
 
 
@@ -85,12 +110,23 @@ async def test_run_one_shot_handles_tool_events():
 
     class FakeLLM:
         async def generate_stream(self, messages, tools=None):
-            yield LLMStreamChunk(type="tool_call_end", tool_call=ToolCallRequest(id="call_1", name="echo", arguments={"msg": "hi"}))
+            yield LLMStreamChunk(
+                type="tool_call_end",
+                tool_call=ToolCallRequest(
+                    id="call_1", name="echo", arguments={"msg": "hi"}
+                ),
+            )
 
-    agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"))
+    agent = Agent(
+        prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp")
+    )
     agent._llm_provider = FakeLLM()
     agent.tools.register_from_def(
-        ToolDef(name="echo", description="Echo", parameters={"type": "object", "properties": {"msg": {"type": "string"}}}),
+        ToolDef(
+            name="echo",
+            description="Echo",
+            parameters={"type": "object", "properties": {"msg": {"type": "string"}}},
+        ),
         lambda args: f"echo: {args.get('msg', '')}",
     )
 
@@ -98,23 +134,29 @@ async def test_run_one_shot_handles_tool_events():
     with patch("builtins.print") as mock_print:
         await _run_one_shot(args, agent)
 
-    printed = "".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
+    printed = "".join(
+        str(call.args[0]) for call in mock_print.call_args_list if call.args
+    )
     assert "echo" in printed
 
 
 def test_main_routes_to_tui():
-    with patch.object(sys, 'argv', ['mid-harness', '--tui', '--api-key-env', 'FAKE_KEY']):
-        with patch.dict('os.environ', {'FAKE_KEY': 'test-key'}):
-            with patch('mid_harness.cli.asyncio.run') as mock_run:
+    with patch.object(
+        sys, "argv", ["mid-harness", "--tui", "--api-key-env", "FAKE_KEY"]
+    ):
+        with patch.dict("os.environ", {"FAKE_KEY": "test-key"}):
+            with patch("mid_harness.cli.asyncio.run") as mock_run:
                 from mid_harness.cli import main
+
                 main()
                 assert mock_run.called
 
 
 def test_main_routes_to_session():
-    with patch.object(sys, 'argv', ['mid-harness', '--api-key-env', 'FAKE_KEY']):
-        with patch.dict('os.environ', {'FAKE_KEY': 'test-key'}):
-            with patch('mid_harness.cli.asyncio.run') as mock_run:
+    with patch.object(sys, "argv", ["mid-harness", "--api-key-env", "FAKE_KEY"]):
+        with patch.dict("os.environ", {"FAKE_KEY": "test-key"}):
+            with patch("mid_harness.cli.asyncio.run") as mock_run:
                 from mid_harness.cli import main
+
                 main()
                 assert mock_run.called

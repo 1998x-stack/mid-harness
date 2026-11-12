@@ -78,10 +78,22 @@ def register(agent) -> None:
             parameters={
                 "type": "object",
                 "properties": {
-                    "pattern": {"type": "string", "description": "Regular expression pattern. Examples: 'def function_name', 'class \\\\w+Error', 'TODO|FIXME'."},
-                    "path": {"type": "string", "description": "Directory or file to search. Default: current directory."},
-                    "file_pattern": {"type": "string", "description": "Glob to filter files (e.g., '*.py', '*.{ts,tsx}', 'src/**/*.py')."},
-                    "max_results": {"type": "integer", "description": "Maximum number of results to return. Default: 100."},
+                    "pattern": {
+                        "type": "string",
+                        "description": "Regular expression pattern. Examples: 'def function_name', 'class \\\\w+Error', 'TODO|FIXME'.",
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Directory or file to search. Default: current directory.",
+                    },
+                    "file_pattern": {
+                        "type": "string",
+                        "description": "Glob to filter files (e.g., '*.py', '*.{ts,tsx}', 'src/**/*.py').",
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return. Default: 100.",
+                    },
                 },
                 "required": ["pattern"],
             },

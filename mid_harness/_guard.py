@@ -23,7 +23,9 @@ class FilesystemGuard:
 
     def guard(self, path: str, operation: str = "read") -> str:
         resolved = self.resolve(path)
-        if not (resolved == self._workspace or resolved.startswith(self._workspace + os.sep)):
+        if not (
+            resolved == self._workspace or resolved.startswith(self._workspace + os.sep)
+        ):
             raise PathAccessError(
                 f"Access denied: '{path}' (resolved: '{resolved}') "
                 f"is outside allowed workspace."

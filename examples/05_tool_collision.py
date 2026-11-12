@@ -7,6 +7,7 @@ Demonstrates:
 - MCP namespace names blocked
 - SkillLoadError wrapping ToolCollisionError
 """
+
 from mid_harness._tools import ToolDef, ToolRegistry, ToolCollisionError
 from mid_harness._core import SkillLoadError
 
@@ -16,8 +17,15 @@ def test_collision_detection():
 
     # ── Test 1: Register and read a tool ──
     registry.register_from_def(
-        ToolDef(name="echo", description="Echo input",
-                parameters={"type": "object", "properties": {"msg": {"type": "string"}}, "required": ["msg"]}),
+        ToolDef(
+            name="echo",
+            description="Echo input",
+            parameters={
+                "type": "object",
+                "properties": {"msg": {"type": "string"}},
+                "required": ["msg"],
+            },
+        ),
         lambda args: args["msg"],
     )
     tool = registry.get("echo")
@@ -28,8 +36,11 @@ def test_collision_detection():
     # ── Test 2: Duplicate name raises error ──
     try:
         registry.register_from_def(
-            ToolDef(name="echo", description="Another echo",
-                    parameters={"type": "object", "properties": {}}),
+            ToolDef(
+                name="echo",
+                description="Another echo",
+                parameters={"type": "object", "properties": {}},
+            ),
             lambda args: "ok",
         )
         assert False, "Should have raised ToolCollisionError"
@@ -42,8 +53,11 @@ def test_collision_detection():
     for reserved in ToolRegistry.RESERVED_NAMES:
         try:
             registry.register_from_def(
-                ToolDef(name=reserved, description="Reserved",
-                        parameters={"type": "object", "properties": {}}),
+                ToolDef(
+                    name=reserved,
+                    description="Reserved",
+                    parameters={"type": "object", "properties": {}},
+                ),
                 lambda args: "ok",
             )
             assert False, f"Should have blocked reserved name: {reserved}"
@@ -57,8 +71,11 @@ def test_collision_detection():
     for name in mcp_names:
         try:
             registry.register_from_def(
-                ToolDef(name=name, description="MCP-like",
-                        parameters={"type": "object", "properties": {}}),
+                ToolDef(
+                    name=name,
+                    description="MCP-like",
+                    parameters={"type": "object", "properties": {}},
+                ),
                 lambda args: "ok",
             )
             assert False, f"Should have blocked MCP namespace: {name}"
@@ -82,16 +99,22 @@ def test_skill_load_error_wrapping():
     """Demonstrate that ToolCollisionError gets wrapped in SkillLoadError."""
     registry = ToolRegistry()
     registry.register_from_def(
-        ToolDef(name="shared_tool", description="First registration",
-                parameters={"type": "object", "properties": {}}),
+        ToolDef(
+            name="shared_tool",
+            description="First registration",
+            parameters={"type": "object", "properties": {}},
+        ),
         lambda args: "first",
     )
 
     # Simulate what load_skill() does
     def register_skill(agent_registry):
         agent_registry.register_from_def(
-            ToolDef(name="shared_tool", description="Second registration",
-                    parameters={"type": "object", "properties": {}}),
+            ToolDef(
+                name="shared_tool",
+                description="Second registration",
+                parameters={"type": "object", "properties": {}},
+            ),
             lambda args: "second",
         )
 

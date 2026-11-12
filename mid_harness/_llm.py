@@ -43,14 +43,12 @@ class LLMProvider(ABC):
     @abstractmethod
     async def generate(
         self, messages: list[dict], tools: list[dict] | None = None
-    ) -> LLMResponse:
-        ...
+    ) -> LLMResponse: ...
 
     @abstractmethod
     async def generate_stream(
         self, messages: list[dict], tools: list[dict] | None = None
-    ) -> AsyncIterator[LLMStreamChunk]:
-        ...
+    ) -> AsyncIterator[LLMStreamChunk]: ...
 
 
 @dataclass
@@ -70,7 +68,13 @@ class FatalLLMError(Exception):
 
 
 class AnthropicProvider(LLMProvider):
-    def __init__(self, api_key: str, model: str, retry_config: LLMRetryConfig | None = None, max_tokens: int = 16384):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        retry_config: LLMRetryConfig | None = None,
+        max_tokens: int = 16384,
+    ):
         self._api_key = api_key
         self._model = model
         self._retry_config = retry_config or LLMRetryConfig()
@@ -88,7 +92,14 @@ class AnthropicProvider(LLMProvider):
     def _convert_tools(self, tools: list[dict] | None) -> list[dict] | None:
         if not tools:
             return None
-        return [{"name": t["name"], "description": t["description"], "input_schema": t["input_schema"]} for t in tools]
+        return [
+            {
+                "name": t["name"],
+                "description": t["description"],
+                "input_schema": t["input_schema"],
+            }
+            for t in tools
+        ]
 
     def _parse_response(self, response) -> LLMResponse:
         text_parts = []
@@ -97,11 +108,16 @@ class AnthropicProvider(LLMProvider):
             if block.type == "text":
                 text_parts.append(block.text)
             elif block.type == "tool_use":
-                tool_calls.append(ToolCallRequest(id=block.id, name=block.name, arguments=block.input))
+                tool_calls.append(
+                    ToolCallRequest(id=block.id, name=block.name, arguments=block.input)
+                )
         return LLMResponse(
             text="".join(text_parts) if text_parts else None,
             tool_calls=tool_calls,
-            usage=TokenUsage(input_tokens=response.usage.input_tokens, output_tokens=response.usage.output_tokens),
+            usage=TokenUsage(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+            ),
             finish_reason=response.stop_reason or "stop",
         )
 
@@ -122,7 +138,12 @@ class AnthropicProvider(LLMProvider):
         converted = self._convert_messages(messages)
         converted_tools = self._convert_tools(tools)
 
-        body: dict = {"model": self._model, "max_tokens": self._max_tokens, "messages": converted, "stream": False}
+        body: dict = {
+            "model": self._model,
+            "max_tokens": self._max_tokens,
+            "messages": converted,
+            "stream": False,
+        }
         if system:
             body["system"] = system
         if converted_tools:
@@ -135,7 +156,11 @@ class AnthropicProvider(LLMProvider):
                     resp = await client.post(
                         "https://api.anthropic.com/v1/messages",
                         json=body,
-                        headers={"x-api-key": self._api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                        headers={
+                            "x-api-key": self._api_key,
+                            "anthropic-version": "2023-06-01",
+                            "content-type": "application/json",
+                        },
                     )
                 if resp.status_code == 200:
                     return self._parse_response(_ResponseAdapter(resp.json()))
@@ -148,7 +173,11 @@ class AnthropicProvider(LLMProvider):
                 last_error = e
                 if attempt == self._retry_config.max_retries:
                     raise FatalLLMError(f"All retries exhausted: {e}")
-                delay = min(self._retry_config.base_delay * (self._retry_config.backoff_factor ** attempt), self._retry_config.max_delay)
+                delay = min(
+                    self._retry_config.base_delay
+                    * (self._retry_config.backoff_factor**attempt),
+                    self._retry_config.max_delay,
+                )
                 await asyncio.sleep(delay + random.uniform(0, delay * 0.5))
         raise FatalLLMError(f"All retries exhausted: {last_error}")
 
@@ -159,7 +188,12 @@ class AnthropicProvider(LLMProvider):
         converted = self._convert_messages(messages)
         converted_tools = self._convert_tools(tools)
 
-        body: dict = {"model": self._model, "max_tokens": self._max_tokens, "messages": converted, "stream": True}
+        body: dict = {
+            "model": self._model,
+            "max_tokens": self._max_tokens,
+            "messages": converted,
+            "stream": True,
+        }
         if system:
             body["system"] = system
         if converted_tools:
@@ -167,30 +201,56 @@ class AnthropicProvider(LLMProvider):
 
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream(
-                "POST", "https://api.anthropic.com/v1/messages",
+                "POST",
+                "https://api.anthropic.com/v1/messages",
                 json=body,
-                headers={"x-api-key": self._api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                headers={
+                    "x-api-key": self._api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
             ) as response:
                 if response.status_code != 200:
                     body_bytes = await response.aread()
-                    raise FatalLLMError(f"Stream failed: {response.status_code} {body_bytes}")
+                    raise FatalLLMError(
+                        f"Stream failed: {response.status_code} {body_bytes}"
+                    )
                 async for line in response.aiter_lines():
                     parsed = self._parse_sse_line(line)
                     if parsed is None:
                         continue
                     event_type, value = parsed
                     if event_type == "message_start":
-                        yield LLMStreamChunk(type="usage", content=json.dumps({"input": value.get("message", {}).get("usage", {}).get("input_tokens", 0)}))
+                        yield LLMStreamChunk(
+                            type="usage",
+                            content=json.dumps(
+                                {
+                                    "input": value.get("message", {})
+                                    .get("usage", {})
+                                    .get("input_tokens", 0)
+                                }
+                            ),
+                        )
                     elif event_type == "content_block_start":
                         block = value.get("content_block", {})
                         if block.get("type") == "tool_use":
-                            yield LLMStreamChunk(type="tool_call_start", content=json.dumps({"id": block["id"], "name": block["name"]}))
+                            yield LLMStreamChunk(
+                                type="tool_call_start",
+                                content=json.dumps(
+                                    {"id": block["id"], "name": block["name"]}
+                                ),
+                            )
                     elif event_type == "content_block_delta":
                         delta = value.get("delta", {})
                         if delta.get("type") == "text_delta":
-                            yield LLMStreamChunk(type="text_delta", content=delta.get("text", ""))
+                            yield LLMStreamChunk(
+                                type="text_delta", content=delta.get("text", "")
+                            )
                         elif delta.get("type") == "input_json_delta":
-                            yield LLMStreamChunk(type="tool_call_delta", content=delta.get("partial_json", ""))
+                            yield LLMStreamChunk(
+                                type="tool_call_delta",
+                                content=delta.get("partial_json", ""),
+                            )
                     elif event_type == "content_block_stop":
                         yield LLMStreamChunk(type="tool_call_end")
 
@@ -219,7 +279,14 @@ class _UsageAdapter:
 
 
 class OpenAIProvider(LLMProvider):
-    def __init__(self, api_key: str, model: str, base_url: str = "https://api.openai.com/v1", retry_config: LLMRetryConfig | None = None, max_tokens: int = 16384):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        base_url: str = "https://api.openai.com/v1",
+        retry_config: LLMRetryConfig | None = None,
+        max_tokens: int = 16384,
+    ):
         self._api_key = api_key
         self._model = model
         self._base_url = base_url.rstrip("/")
@@ -232,7 +299,17 @@ class OpenAIProvider(LLMProvider):
     def _convert_tools(self, tools: list[dict] | None) -> list[dict] | None:
         if not tools:
             return None
-        return [{"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["input_schema"]}} for t in tools]
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": t["name"],
+                    "description": t["description"],
+                    "parameters": t["input_schema"],
+                },
+            }
+            for t in tools
+        ]
 
     def _parse_response(self, data: dict) -> LLMResponse:
         choice = data["choices"][0]
@@ -240,17 +317,32 @@ class OpenAIProvider(LLMProvider):
         tool_calls = []
         if msg.get("tool_calls"):
             for tc in msg["tool_calls"]:
-                tool_calls.append(ToolCallRequest(id=tc["id"], name=tc["function"]["name"], arguments=json.loads(tc["function"]["arguments"])))
+                tool_calls.append(
+                    ToolCallRequest(
+                        id=tc["id"],
+                        name=tc["function"]["name"],
+                        arguments=json.loads(tc["function"]["arguments"]),
+                    )
+                )
         return LLMResponse(
             text=msg.get("content"),
             tool_calls=tool_calls,
-            usage=TokenUsage(input_tokens=data.get("usage", {}).get("prompt_tokens", 0), output_tokens=data.get("usage", {}).get("completion_tokens", 0)),
+            usage=TokenUsage(
+                input_tokens=data.get("usage", {}).get("prompt_tokens", 0),
+                output_tokens=data.get("usage", {}).get("completion_tokens", 0),
+            ),
             finish_reason=choice.get("finish_reason", "stop"),
         )
 
     async def generate(self, messages, tools=None) -> LLMResponse:
         import httpx
-        body: dict = {"model": self._model, "messages": self._convert_messages(messages), "max_tokens": self._max_tokens, "stream": False}
+
+        body: dict = {
+            "model": self._model,
+            "messages": self._convert_messages(messages),
+            "max_tokens": self._max_tokens,
+            "stream": False,
+        }
         converted_tools = self._convert_tools(tools)
         if converted_tools:
             body["tools"] = converted_tools
@@ -262,7 +354,10 @@ class OpenAIProvider(LLMProvider):
                     resp = await client.post(
                         f"{self._base_url}/chat/completions",
                         json=body,
-                        headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"},
+                        headers={
+                            "Authorization": f"Bearer {self._api_key}",
+                            "Content-Type": "application/json",
+                        },
                     )
                 if resp.status_code == 200:
                     return self._parse_response(resp.json())
@@ -275,26 +370,42 @@ class OpenAIProvider(LLMProvider):
                 last_error = e
                 if attempt == self._retry_config.max_retries:
                     raise FatalLLMError(f"All retries exhausted: {e}")
-                delay = min(self._retry_config.base_delay * (self._retry_config.backoff_factor ** attempt), self._retry_config.max_delay)
+                delay = min(
+                    self._retry_config.base_delay
+                    * (self._retry_config.backoff_factor**attempt),
+                    self._retry_config.max_delay,
+                )
                 await asyncio.sleep(delay + random.uniform(0, delay * 0.5))
         raise FatalLLMError(f"All retries exhausted: {last_error}")
 
     async def generate_stream(self, messages, tools=None):
         import httpx
-        body: dict = {"model": self._model, "messages": self._convert_messages(messages), "max_tokens": self._max_tokens, "stream": True}
+
+        body: dict = {
+            "model": self._model,
+            "messages": self._convert_messages(messages),
+            "max_tokens": self._max_tokens,
+            "stream": True,
+        }
         converted_tools = self._convert_tools(tools)
         if converted_tools:
             body["tools"] = converted_tools
 
         async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream(
-                "POST", f"{self._base_url}/chat/completions",
+                "POST",
+                f"{self._base_url}/chat/completions",
                 json=body,
-                headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"},
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/json",
+                },
             ) as response:
                 if response.status_code != 200:
                     body_bytes = await response.aread()
-                    raise FatalLLMError(f"Stream failed: {response.status_code} {body_bytes}")
+                    raise FatalLLMError(
+                        f"Stream failed: {response.status_code} {body_bytes}"
+                    )
 
                 tool_buffers: dict[int, dict] = {}
 
@@ -312,13 +423,19 @@ class OpenAIProvider(LLMProvider):
 
                     delta = data.get("choices", [{}])[0].get("delta", {})
                     if delta.get("content"):
-                        yield LLMStreamChunk(type="text_delta", content=delta["content"])
+                        yield LLMStreamChunk(
+                            type="text_delta", content=delta["content"]
+                        )
 
                     if delta.get("tool_calls"):
                         for tc in delta["tool_calls"]:
                             idx = tc.get("index", 0)
                             if idx not in tool_buffers:
-                                tool_buffers[idx] = {"id": "", "name": "", "arguments": ""}
+                                tool_buffers[idx] = {
+                                    "id": "",
+                                    "name": "",
+                                    "arguments": "",
+                                }
 
                             buf = tool_buffers[idx]
                             if "id" in tc and tc["id"]:
@@ -326,7 +443,12 @@ class OpenAIProvider(LLMProvider):
                             func = tc.get("function", {})
                             if "name" in func and func["name"]:
                                 buf["name"] = func["name"]
-                                yield LLMStreamChunk(type="tool_call_start", content=json.dumps({"id": buf["id"], "name": buf["name"]}))
+                                yield LLMStreamChunk(
+                                    type="tool_call_start",
+                                    content=json.dumps(
+                                        {"id": buf["id"], "name": buf["name"]}
+                                    ),
+                                )
                             if "arguments" in func:
                                 buf["arguments"] += func["arguments"]
 
@@ -339,5 +461,9 @@ class OpenAIProvider(LLMProvider):
                                     args = json.loads(buf["arguments"])
                                 except json.JSONDecodeError:
                                     args = {}
-                                tc = ToolCallRequest(id=buf["id"] or f"call_{idx}", name=buf["name"], arguments=args)
+                                tc = ToolCallRequest(
+                                    id=buf["id"] or f"call_{idx}",
+                                    name=buf["name"],
+                                    arguments=args,
+                                )
                                 yield LLMStreamChunk(type="tool_call_end", tool_call=tc)

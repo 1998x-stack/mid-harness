@@ -9,13 +9,13 @@ Demonstrates full hook pipeline:
 - Loop hooks tracking iteration state
 - LLM hooks tracking API calls
 """
+
 import asyncio
-import json
-from mid_harness._hooks import HookSystem, HookContext
+from mid_harness._hooks import HookSystem
 from mid_harness._config import AgentConfig, Prompt
-from mid_harness._messages import MessageManager, TokenStatus
-from mid_harness._events import EventBus, StreamEvent
-from mid_harness._tools import ToolRegistry, ToolDef, ToolExecutor, ToolResult
+from mid_harness._messages import MessageManager
+from mid_harness._events import EventBus
+from mid_harness._tools import ToolRegistry, ToolDef, ToolExecutor
 from mid_harness._guard import FilesystemGuard
 from mid_harness._llm import LLMStreamChunk, ToolCallRequest
 from mid_harness._loop import AgentLoop
@@ -42,6 +42,7 @@ class FakeLLM:
 
     async def generate(self, messages, tools):
         from mid_harness._llm import LLMResponse
+
         return LLMResponse(text="degraded finish", tool_calls=[])
 
 
@@ -51,53 +52,102 @@ async def main():
     chain_log = []
 
     # Guard: block "delete" tool
-    hs.register("tool:pre_execute",
-        lambda ctx: ctx.abort("delete blocked") if ctx.data["name"] == "delete_file" else None,
-        hook_type="guard", priority=100)
+    hs.register(
+        "tool:pre_execute",
+        lambda ctx: (
+            ctx.abort("delete blocked") if ctx.data["name"] == "delete_file" else None
+        ),
+        hook_type="guard",
+        priority=100,
+    )
 
     # Pre-hook: add timestamp to all tool args
     def add_timestamp(ctx):
         args = dict(ctx.data.get("args", {}))
         args["_timestamp"] = 1234567890
         ctx.modify("args", args)
+
     hs.register("tool:pre_execute", add_timestamp, hook_type="pre", priority=50)
 
     # Post-hook: observe results
-    hs.register("tool:post_execute",
-        lambda ctx: chain_log.append(f"post:{ctx.data['name']}:{ctx.data.get('result', '')[:20]}"),
-        hook_type="post")
-    hs.register("tool:error",
-        lambda ctx: chain_log.append(f"error:{ctx.data['name']}:{ctx.data.get('error', '')[:30]}"),
-        hook_type="post")
+    hs.register(
+        "tool:post_execute",
+        lambda ctx: chain_log.append(
+            f"post:{ctx.data['name']}:{ctx.data.get('result', '')[:20]}"
+        ),
+        hook_type="post",
+    )
+    hs.register(
+        "tool:error",
+        lambda ctx: chain_log.append(
+            f"error:{ctx.data['name']}:{ctx.data.get('error', '')[:30]}"
+        ),
+        hook_type="post",
+    )
 
     # Loop hooks
-    hs.register("loop:start", lambda ctx: chain_log.append("loop:start"), hook_type="post")
-    hs.register("loop:iteration", lambda ctx: chain_log.append(f"iter:{ctx.data['num']}"), hook_type="post")
-    hs.register("loop:complete", lambda ctx: chain_log.append("loop:complete"), hook_type="post")
+    hs.register(
+        "loop:start", lambda ctx: chain_log.append("loop:start"), hook_type="post"
+    )
+    hs.register(
+        "loop:iteration",
+        lambda ctx: chain_log.append(f"iter:{ctx.data['num']}"),
+        hook_type="post",
+    )
+    hs.register(
+        "loop:complete", lambda ctx: chain_log.append("loop:complete"), hook_type="post"
+    )
 
     # LLM hooks
-    hs.register("llm:pre_call", lambda ctx: chain_log.append("llm:pre"), hook_type="pre")
-    hs.register("llm:post_call", lambda ctx: chain_log.append("llm:post"), hook_type="post")
+    hs.register(
+        "llm:pre_call", lambda ctx: chain_log.append("llm:pre"), hook_type="pre"
+    )
+    hs.register(
+        "llm:post_call", lambda ctx: chain_log.append("llm:post"), hook_type="post"
+    )
 
     # ── Register tools ──
     registry = ToolRegistry()
+
     def echo_handler(args):
         return args.get("msg", "no message")
+
     def write_handler(args):
         return f"wrote to {args.get('path', 'unknown')}"
 
     registry.register_from_def(
-        ToolDef(name="echo", description="Echo", parameters={
-            "type": "object", "properties": {"msg": {"type": "string"}}, "required": ["msg"]
-        }), echo_handler)
+        ToolDef(
+            name="echo",
+            description="Echo",
+            parameters={
+                "type": "object",
+                "properties": {"msg": {"type": "string"}},
+                "required": ["msg"],
+            },
+        ),
+        echo_handler,
+    )
     registry.register_from_def(
-        ToolDef(name="write_file", description="Write file", parameters={
-            "type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
-            "required": ["path", "content"]
-        }, risk_level="mutation"), write_handler)
+        ToolDef(
+            name="write_file",
+            description="Write file",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "content": {"type": "string"},
+                },
+                "required": ["path", "content"],
+            },
+            risk_level="mutation",
+        ),
+        write_handler,
+    )
 
     # ── Create AgentLoop with hooks ──
-    config = AgentConfig(model="test", api_key="test", workspace="/tmp", max_iterations=5)
+    config = AgentConfig(
+        model="test", api_key="test", workspace="/tmp", max_iterations=5
+    )
     prompt = Prompt("base")
     messages = MessageManager(prompt)
     guard = FilesystemGuard("/tmp")
@@ -105,12 +155,16 @@ async def main():
     bus = EventBus()
 
     # LLM that calls echo then stops
-    llm = FakeLLM(dialogs=[
-        [ToolCallRequest(id="tc1", name="echo", arguments={"msg": "hello world"})],
-        "final answer",
-    ])
+    llm = FakeLLM(
+        dialogs=[
+            [ToolCallRequest(id="tc1", name="echo", arguments={"msg": "hello world"})],
+            "final answer",
+        ]
+    )
 
-    loop = AgentLoop(config=config, messages=messages, llm=llm, tools=executor, events=bus, hooks=hs)
+    loop = AgentLoop(
+        config=config, messages=messages, llm=llm, tools=executor, events=bus, hooks=hs
+    )
 
     # ── Run ──
     print("=== Running agent with full hook chain ===")
@@ -135,28 +189,48 @@ async def main():
         "loop:complete",
     ]
     print(f"\nExpected order: {expected_order}")
-    assert chain_log == expected_order, f"Order mismatch:\nGot:      {chain_log}\nExpected: {expected_order}"
+    assert chain_log == expected_order, (
+        f"Order mismatch:\nGot:      {chain_log}\nExpected: {expected_order}"
+    )
     print("✓ PASS: Full hook chain order correct")
 
     # ── Test 2: Guard blocks delete ──
     chain_log.clear()
-    llm2 = FakeLLM(dialogs=[
-        [ToolCallRequest(id="tc_del", name="delete_file", arguments={"path": "/tmp/x"})],
-        "ok, can't delete",
-    ])
-    config2 = AgentConfig(model="test", api_key="test", workspace="/tmp", max_iterations=5)
+    llm2 = FakeLLM(
+        dialogs=[
+            [
+                ToolCallRequest(
+                    id="tc_del", name="delete_file", arguments={"path": "/tmp/x"}
+                )
+            ],
+            "ok, can't delete",
+        ]
+    )
+    config2 = AgentConfig(
+        model="test", api_key="test", workspace="/tmp", max_iterations=5
+    )
     prompt2 = Prompt("base")
     messages2 = MessageManager(prompt2)
     executor2 = ToolExecutor(registry, guard)
     bus2 = EventBus()
-    loop2 = AgentLoop(config=config2, messages=messages2, llm=llm2, tools=executor2, events=bus2, hooks=hs)
+    loop2 = AgentLoop(
+        config=config2,
+        messages=messages2,
+        llm=llm2,
+        tools=executor2,
+        events=bus2,
+        hooks=hs,
+    )
     result2 = await loop2.run("try delete")
-    print(f"\n=== Test 2: Guard blocks delete ===")
+    print("\n=== Test 2: Guard blocks delete ===")
     print(f"Result: {result2}")
-    assert any("error:delete_file" in entry for entry in chain_log), f"Expected error log, got: {chain_log}"
+    assert any("error:delete_file" in entry for entry in chain_log), (
+        f"Expected error log, got: {chain_log}"
+    )
     print(f"Hook chain: {chain_log}")
     print("✓ PASS: Guard blocked delete, error hook fired")
 
     print("\nAll end-to-end hook tests passed!")
+
 
 asyncio.run(main())

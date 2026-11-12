@@ -21,7 +21,9 @@ def test_agent_register_tool():
     prompt = Prompt("You are helpful.")
     config = Config(model="claude-test", api_key="sk-test", workspace="/tmp")
     agent = Agent(prompt=prompt, config=config)
-    def_ = ToolDef(name="echo", description="Echo", parameters={"type": "object", "properties": {}})
+    def_ = ToolDef(
+        name="echo", description="Echo", parameters={"type": "object", "properties": {}}
+    )
     agent.tools.register_from_def(def_, lambda args: "echo")
     assert "echo" in agent.tools.names()
 
@@ -31,8 +33,10 @@ def test_agent_events():
     config = Config(model="claude-test", api_key="sk-test", workspace="/tmp")
     agent = Agent(prompt=prompt, config=config)
     received = []
+
     async def handler(event):
         received.append(event)
+
     agent.events.subscribe(handler)
     assert agent.events is not None
 
@@ -45,7 +49,14 @@ def test_agent_clear():
 
 
 def test_agent_config_fields():
-    config = Config(model="gpt-4o", api_key="k", workspace="/tmp", provider="openai", api_base_url="https://api.openai.com/v1", max_iterations=10)
+    config = Config(
+        model="gpt-4o",
+        api_key="k",
+        workspace="/tmp",
+        provider="openai",
+        api_base_url="https://api.openai.com/v1",
+        max_iterations=10,
+    )
     assert config.provider == "openai"
     assert config.api_base_url == "https://api.openai.com/v1"
     assert config.max_iterations == 10
@@ -74,6 +85,7 @@ async def test_agent_run_stream_yields_events():
     class FakeLLM:
         async def generate_stream(self, messages, tools=None):
             from mid_harness._llm import LLMStreamChunk
+
             yield LLMStreamChunk(type="text_delta", content="Hello")
             yield LLMStreamChunk(type="text_delta", content=" world")
 
@@ -128,10 +140,12 @@ async def test_agent_session_accumulates_conversation():
     config = Config(model="test", api_key="k", workspace="/tmp")
 
     call_count = [0]
+
     class FakeLLM:
         async def generate_stream(self, messages, tools=None):
             call_count[0] += 1
             from mid_harness._llm import LLMStreamChunk
+
             msg_count = len([m for m in messages if m["role"] == "user"])
             yield LLMStreamChunk(type="text_delta", content=f"msg_count={msg_count}")
 
@@ -164,7 +178,9 @@ def test_agent_max_iterations_property():
 
 
 def test_agent_estimate_tokens():
-    agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"))
+    agent = Agent(
+        prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp")
+    )
     agent._messages.add_user("Hello world")
     tokens = agent.estimate_tokens()
     assert tokens > 0
@@ -172,7 +188,9 @@ def test_agent_estimate_tokens():
 
 
 def test_agent_start_session_idempotent():
-    agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"))
+    agent = Agent(
+        prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp")
+    )
     sid1 = agent.start_session()
     assert sid1 is not None
     sid2 = agent.start_session()
@@ -180,12 +198,16 @@ def test_agent_start_session_idempotent():
 
 
 def test_agent_save_turn_without_session_is_noop():
-    agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"))
+    agent = Agent(
+        prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp")
+    )
     agent._save_turn("user", content="hello")
 
 
 def test_agent_dump_conversation_writes_user_messages():
-    agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"))
+    agent = Agent(
+        prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp")
+    )
     agent._messages.add_user("Hello")
     agent._messages.add_user("World")
     agent.start_session()
@@ -200,7 +222,10 @@ def test_agent_dump_conversation_writes_user_messages():
 
 def test_agent_dump_conversation_with_tool_calls():
     from mid_harness._llm import ToolCallRequest
-    agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"))
+
+    agent = Agent(
+        prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp")
+    )
     agent._messages.add_user("read file")
     tc = ToolCallRequest(id="call_1", name="read_file", arguments={"path": "test.py"})
     agent._messages.add_assistant(text="Let me read that", tool_calls=[tc])
@@ -227,12 +252,18 @@ async def test_agent_run_persists_via_dump():
     class FakeLLM:
         async def generate_stream(self, messages, tools=None):
             from mid_harness._llm import LLMStreamChunk
+
             yield LLMStreamChunk(type="text_delta", content="Hello from agent")
 
     with tempfile.TemporaryDirectory() as d:
         from mid_harness._persist import SessionStore
+
         store = SessionStore(base_dir=d)
-        agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"), store=store)
+        agent = Agent(
+            prompt=Prompt("test"),
+            config=Config(model="t", api_key="k", workspace="/tmp"),
+            store=store,
+        )
         agent._llm_provider = FakeLLM()
 
         result = await agent.run("Hi there")
@@ -256,12 +287,18 @@ async def test_agent_run_stream_persists_via_dump():
     class FakeLLM:
         async def generate_stream(self, messages, tools=None):
             from mid_harness._llm import LLMStreamChunk
+
             yield LLMStreamChunk(type="text_delta", content="Streaming response")
 
     with tempfile.TemporaryDirectory() as d:
         from mid_harness._persist import SessionStore
+
         store = SessionStore(base_dir=d)
-        agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"), store=store)
+        agent = Agent(
+            prompt=Prompt("test"),
+            config=Config(model="t", api_key="k", workspace="/tmp"),
+            store=store,
+        )
         agent._llm_provider = FakeLLM()
 
         async for _ in agent.run_stream("stream prompt"):
@@ -285,12 +322,18 @@ async def test_agent_save_and_resume_full_cycle():
     class FakeLLM:
         async def generate_stream(self, messages, tools=None):
             from mid_harness._llm import LLMStreamChunk
+
             yield LLMStreamChunk(type="text_delta", content="Answer")
 
     with tempfile.TemporaryDirectory() as d:
         from mid_harness._persist import SessionStore
+
         store = SessionStore(base_dir=d)
-        agent = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"), store=store)
+        agent = Agent(
+            prompt=Prompt("test"),
+            config=Config(model="t", api_key="k", workspace="/tmp"),
+            store=store,
+        )
         agent._llm_provider = FakeLLM()
 
         await agent.run("First question")
@@ -298,7 +341,11 @@ async def test_agent_save_and_resume_full_cycle():
         sid = agent.session_id
         agent._dump_conversation()
 
-        agent2 = Agent(prompt=Prompt("test"), config=Config(model="t", api_key="k", workspace="/tmp"), store=store)
+        agent2 = Agent(
+            prompt=Prompt("test"),
+            config=Config(model="t", api_key="k", workspace="/tmp"),
+            store=store,
+        )
         restored = agent2.resume_session(sid)
         assert restored > 0
         msgs = agent2._messages.to_list()

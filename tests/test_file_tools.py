@@ -3,8 +3,13 @@ import os
 import tempfile
 import pytest
 from mid_harness.tools.files import (
-    read_file, write_file, list_directory, find_files,
-    delete_file, create_directory, move_file,
+    read_file,
+    write_file,
+    list_directory,
+    find_files,
+    delete_file,
+    create_directory,
+    move_file,
 )
 
 
@@ -121,7 +126,9 @@ def test_create_directory_already_exists(tmpdir):
 
 
 def test_move_file_source_not_found():
-    result = move_file({"source": "/nonexistent/src.txt", "destination": "/tmp/dst.txt"})
+    result = move_file(
+        {"source": "/nonexistent/src.txt", "destination": "/tmp/dst.txt"}
+    )
     assert "not found" in result.lower()
 
 

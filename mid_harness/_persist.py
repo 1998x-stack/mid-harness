@@ -1,5 +1,6 @@
 # mid_harness/_persist.py
 """JSONL-based session persistence for mid-harness conversations."""
+
 import json
 import os
 import uuid
@@ -9,21 +10,29 @@ from pathlib import Path
 
 class SessionStore:
     def __init__(self, base_dir: str | None = None):
-        self._base = Path(base_dir or os.path.join(os.path.expanduser("~"), ".mid-harness", "sessions"))
+        self._base = Path(
+            base_dir
+            or os.path.join(os.path.expanduser("~"), ".mid-harness", "sessions")
+        )
         self._base.mkdir(parents=True, exist_ok=True)
 
     def new_session(self) -> str:
         sid = uuid.uuid4().hex[:12]
         return sid
 
-    def save_turn(self, session_id: str, chat_id: int, role: str,
-                  content: str | None = None,
-                  tool_calls: list | None = None,
-                  tool_results: list | None = None,
-                  token_usage: dict | None = None,
-                  model: str | None = None,
-                  iteration: int | None = None,
-                  metadata: dict | None = None) -> None:
+    def save_turn(
+        self,
+        session_id: str,
+        chat_id: int,
+        role: str,
+        content: str | None = None,
+        tool_calls: list | None = None,
+        tool_results: list | None = None,
+        token_usage: dict | None = None,
+        model: str | None = None,
+        iteration: int | None = None,
+        metadata: dict | None = None,
+    ) -> None:
         record = {
             "session_id": session_id,
             "chat_id": chat_id,
@@ -35,13 +44,18 @@ class SessionStore:
         if tool_calls:
             record["tool_calls"] = [
                 {"name": tc["name"], "arguments": tc.get("arguments", {})}
-                if isinstance(tc, dict) else {"name": tc.name, "arguments": tc.arguments}
+                if isinstance(tc, dict)
+                else {"name": tc.name, "arguments": tc.arguments}
                 for tc in tool_calls
             ]
         if tool_results:
             record["tool_results"] = [
-                {"id": tr.get("tool_call_id", ""), "content": str(tr.get("content", ""))[:200]}
-                if isinstance(tr, dict) else {"id": tr.tool_call_id, "content": str(tr.content)[:200]}
+                {
+                    "id": tr.get("tool_call_id", ""),
+                    "content": str(tr.get("content", ""))[:200],
+                }
+                if isinstance(tr, dict)
+                else {"id": tr.tool_call_id, "content": str(tr.content)[:200]}
                 for tr in tool_results
             ]
         if token_usage:
@@ -71,21 +85,25 @@ class SessionStore:
 
     def list_sessions(self) -> list[dict]:
         sessions = []
-        for fpath in sorted(self._base.glob("*.jsonl"), key=os.path.getmtime, reverse=True):
+        for fpath in sorted(
+            self._base.glob("*.jsonl"), key=os.path.getmtime, reverse=True
+        ):
             sid = fpath.stem
             records = self.load_session(sid)
             if not records:
                 continue
             first = records[0]
             last = records[-1]
-            sessions.append({
-                "session_id": sid,
-                "created": first.get("timestamp", ""),
-                "updated": last.get("timestamp", ""),
-                "turns": len(records),
-                "model": first.get("model", "unknown"),
-                "file": str(fpath),
-            })
+            sessions.append(
+                {
+                    "session_id": sid,
+                    "created": first.get("timestamp", ""),
+                    "updated": last.get("timestamp", ""),
+                    "turns": len(records),
+                    "model": first.get("model", "unknown"),
+                    "file": str(fpath),
+                }
+            )
         return sessions
 
     def delete_session(self, session_id: str) -> bool:

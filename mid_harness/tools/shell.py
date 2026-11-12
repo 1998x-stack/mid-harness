@@ -46,6 +46,7 @@ def run_command(args: dict) -> str:
 
     if cwd:
         import os as _os
+
         resolved = _os.path.realpath(_os.path.expanduser(cwd))
         here = _os.path.realpath(".")
         if _os.path.commonpath([resolved, here]) != here:
@@ -69,7 +70,10 @@ def run_command(args: dict) -> str:
         if not output.strip():
             output = "(no output)"
         if len(output) > MAX_OUTPUT_CHARS:
-            output = output[:MAX_OUTPUT_CHARS] + f"\n\n[... truncated at {MAX_OUTPUT_CHARS} characters]"
+            output = (
+                output[:MAX_OUTPUT_CHARS]
+                + f"\n\n[... truncated at {MAX_OUTPUT_CHARS} characters]"
+            )
         return output
     except subprocess.TimeoutExpired:
         return f"Error: Command timed out after {timeout}s"

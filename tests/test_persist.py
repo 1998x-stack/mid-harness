@@ -15,8 +15,16 @@ def test_save_and_load_turn():
         store = SessionStore(base_dir=d)
         sid = store.new_session()
 
-        store.save_turn(sid, chat_id=1, role="user", content="Hello", model="deepseek-chat")
-        store.save_turn(sid, chat_id=2, role="assistant", content="Hi!", token_usage={"input": 10, "output": 5})
+        store.save_turn(
+            sid, chat_id=1, role="user", content="Hello", model="deepseek-chat"
+        )
+        store.save_turn(
+            sid,
+            chat_id=2,
+            role="assistant",
+            content="Hi!",
+            token_usage={"input": 10, "output": 5},
+        )
 
         records = store.load_session(sid)
         assert len(records) == 2
@@ -32,9 +40,14 @@ def test_save_turn_with_tool_calls():
         store = SessionStore(base_dir=d)
         sid = store.new_session()
 
-        store.save_turn(sid, chat_id=1, role="assistant", content="Let me check",
-                        tool_calls=[{"name": "read_file", "arguments": {"path": "/tmp/x"}}],
-                        tool_results=[{"tool_call_id": "tc1", "content": "file content here"}])
+        store.save_turn(
+            sid,
+            chat_id=1,
+            role="assistant",
+            content="Let me check",
+            tool_calls=[{"name": "read_file", "arguments": {"path": "/tmp/x"}}],
+            tool_results=[{"tool_call_id": "tc1", "content": "file content here"}],
+        )
 
         records = store.load_session(sid)
         assert len(records) == 1
@@ -91,7 +104,9 @@ def test_save_turn_with_iteration():
     with tempfile.TemporaryDirectory() as d:
         store = SessionStore(base_dir=d)
         sid = store.new_session()
-        store.save_turn(sid, 1, "assistant", "ok", iteration=3, metadata={"workspace": "/tmp"})
+        store.save_turn(
+            sid, 1, "assistant", "ok", iteration=3, metadata={"workspace": "/tmp"}
+        )
         records = store.load_session(sid)
         assert records[0]["iteration"] == 3
         assert records[0]["metadata"]["workspace"] == "/tmp"

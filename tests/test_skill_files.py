@@ -30,6 +30,7 @@ def test_load_skill_not_found():
     config = Config(model="t", api_key="k", workspace="/tmp")
     agent = Agent(prompt=prompt, config=config)
     from mid_harness._core import SkillLoadError
+
     with pytest.raises(SkillLoadError, match="not found"):
         agent.load_skill("nonexistent_skill_xyz")
 
@@ -59,5 +60,13 @@ def test_skill_registers_all_seven_tools():
     config = Config(model="t", api_key="k", workspace="/tmp")
     agent = Agent(prompt=prompt, config=config)
     agent.load_skill("files")
-    expected_tools = {"read_file", "write_file", "list_directory", "find_files", "delete_file", "create_directory", "move_file"}
+    expected_tools = {
+        "read_file",
+        "write_file",
+        "list_directory",
+        "find_files",
+        "delete_file",
+        "create_directory",
+        "move_file",
+    }
     assert expected_tools.issubset(set(agent.tools.names()))

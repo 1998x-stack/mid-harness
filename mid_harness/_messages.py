@@ -33,7 +33,9 @@ class MessageManager:
     def add_user(self, content: str) -> None:
         self.messages.append({"role": "user", "content": content})
 
-    def add_assistant(self, text: str | None, tool_calls: list[ToolCallRequest] | None = None) -> None:
+    def add_assistant(
+        self, text: str | None, tool_calls: list[ToolCallRequest] | None = None
+    ) -> None:
         msg: dict = {"role": "assistant"}
         if text:
             msg["content"] = text
@@ -41,13 +43,22 @@ class MessageManager:
             msg["content"] = None
         if tool_calls:
             msg["tool_calls"] = [
-                {"id": tc.id, "type": "function", "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.name,
+                        "arguments": json.dumps(tc.arguments),
+                    },
+                }
                 for tc in tool_calls
             ]
         self.messages.append(msg)
 
     def add_tool_result(self, tool_call_id: str, content: str) -> None:
-        self.messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": content})
+        self.messages.append(
+            {"role": "tool", "tool_call_id": tool_call_id, "content": content}
+        )
 
     def add_system_notice(self, notice: str) -> None:
         self.messages.append({"role": "user", "content": f"[System Notice] {notice}"})

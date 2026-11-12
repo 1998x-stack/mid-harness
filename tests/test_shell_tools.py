@@ -1,5 +1,6 @@
 # tests/test_shell_tools.py
 """Comprehensive tests for shell command tool."""
+
 import os
 import pytest
 from mid_harness.tools.shell import run_command
@@ -17,7 +18,7 @@ def test_cwd():
 
 
 def test_exit_code_nonzero():
-    result = run_command({"command": "python3 -c \"import sys; sys.exit(1)\""})
+    result = run_command({"command": 'python3 -c "import sys; sys.exit(1)"'})
     assert "[exit code: 1]" in result
 
 
@@ -55,8 +56,11 @@ def test_command_with_special_chars():
 
 
 def test_command_with_env():
-    result = run_command({"command": "MYVAR=hello python3 -c 'import os; print(os.environ[\"MYVAR\"])'"})
+    result = run_command(
+        {"command": "MYVAR=hello python3 -c 'import os; print(os.environ[\"MYVAR\"])'"}
+    )
     assert "hello" in result.lower()
+
 
 @pytest.mark.skipif(os.name == "nt", reason="Unix only")
 def test_custom_timeout():

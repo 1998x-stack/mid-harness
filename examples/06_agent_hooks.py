@@ -7,6 +7,7 @@ Demonstrates:
 - agent.on() still works alongside hooks
 - Lifecycle hooks fire during agent.run()
 """
+
 import asyncio
 from mid_harness import Agent, Prompt, Config
 
@@ -18,17 +19,22 @@ agent = Agent(
 # ── Register lifecycle hooks ──
 lifecycle_events = []
 
+
 def on_agent_init(ctx):
     lifecycle_events.append(f"agent:init (tools={len(ctx.data['tools'])})")
+
 
 def on_session_start(ctx):
     lifecycle_events.append(f"session:start (model={ctx.data['model']})")
 
+
 def on_loop_start(ctx):
     lifecycle_events.append(f"loop:start (max_iter={ctx.data['max_iterations']})")
 
+
 def on_tool_execute(ctx):
     lifecycle_events.append(f"tool:post_execute ({ctx.data['name']})")
+
 
 agent.hook("agent:init", on_agent_init, hook_type="post")
 agent.hook("session:start", on_session_start, hook_type="post")
@@ -37,15 +43,23 @@ agent.hook("tool:post_execute", on_tool_execute, hook_type="post")
 
 # ── Register a guard that blocks nothing (just logs) ──
 guard_log = []
+
+
 def log_tool_call(ctx):
     guard_log.append(ctx.data["name"])
+
+
 agent.hook("tool:pre_execute", log_tool_call, hook_type="guard", priority=100)
 
 # ── Register and then remove a hook ──
 removed_calls = []
-name = agent.hook("tool:pre_execute", lambda ctx: removed_calls.append("should-not-fire"),
-                   hook_type="pre")
+name = agent.hook(
+    "tool:pre_execute",
+    lambda ctx: removed_calls.append("should-not-fire"),
+    hook_type="pre",
+)
 agent.unhook(name)
+
 
 async def main():
     # ── Test 1: agent.on() still works ──
@@ -70,7 +84,7 @@ async def main():
     print("✓ PASS: unhook() works")
 
     # ── Test 4: Agent has 4 registered lifecycle hooks ──
-    print(f"\nRegistered hooks test structure: OK")
+    print("\nRegistered hooks test structure: OK")
 
     # ── Test 5: Run the agent and observe lifecycle hooks ──
     print("\nRunning agent with lifecycle hooks...")
@@ -91,5 +105,6 @@ async def main():
     print("✓ PASS: Removed hook never fires")
 
     print("\nAll agent hook tests passed!")
+
 
 asyncio.run(main())

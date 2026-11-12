@@ -32,7 +32,9 @@ def test_guard_resolves_relative_paths(workspace, monkeypatch):
     monkeypatch.chdir(workspace)
     guard = FilesystemGuard(workspace)
     result = guard.guard("test.txt", "read")
-    assert os.path.realpath(result) == os.path.realpath(os.path.join(workspace, "test.txt"))
+    assert os.path.realpath(result) == os.path.realpath(
+        os.path.join(workspace, "test.txt")
+    )
 
 
 def test_guard_resolves_dot_dot_traversal(workspace):

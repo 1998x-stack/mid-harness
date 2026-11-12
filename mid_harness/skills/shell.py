@@ -81,9 +81,18 @@ def register(agent) -> None:
             parameters={
                 "type": "object",
                 "properties": {
-                    "command": {"type": "string", "description": "Shell command to execute. Keep it focused and specific."},
-                    "cwd": {"type": "string", "description": "Working directory. Default: workspace root."},
-                    "timeout": {"type": "integer", "description": "Timeout in seconds. Default: 30. Use higher values for builds/tests."},
+                    "command": {
+                        "type": "string",
+                        "description": "Shell command to execute. Keep it focused and specific.",
+                    },
+                    "cwd": {
+                        "type": "string",
+                        "description": "Working directory. Default: workspace root.",
+                    },
+                    "timeout": {
+                        "type": "integer",
+                        "description": "Timeout in seconds. Default: 30. Use higher values for builds/tests.",
+                    },
                 },
                 "required": ["command"],
             },

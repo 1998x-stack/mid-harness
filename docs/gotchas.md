@@ -143,6 +143,29 @@ agent.load_skill("deployer")
 # ❌ SkillLoadError: Skill 'deployer' failed to load: Tool 'deploy' is already registered
 ```
 
+### write_file vs edit_file — the #1 mistake
+
+`write_file` sends the **entire file content**. Use it ONLY for creating new files or full rewrites. For any change to an existing file, use `edit_file`:
+
+```python
+# ❌ Wrong: rewriting the entire file for a one-line change
+read_file(path)
+# ... read 500 lines ...
+write_file(path, modified_entire_content)  # wasteful, risks losing content
+
+# ✅ Correct: surgical edit
+read_file(path)  # see current content
+edit_file(path, old_string="timeout: 30", new_string="timeout: 60")
+read_file(path)  # verify
+```
+
+`edit_file` has three behaviors depending on match count:
+- **Single match** → replaces, reports success
+- **Multiple matches** → returns all locations with context; add surrounding lines to disambiguate or use `replace_all=true`
+- **No match** → returns most similar lines; re-read file and copy exact text
+
+**Always read before edit, always read after to verify.** Skipping verification is the second-most-common mistake.
+
 ---
 
 ## Agent

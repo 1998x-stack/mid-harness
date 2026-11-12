@@ -42,13 +42,16 @@ class ToolResult:
 
 class ToolCollisionError(Exception):
     """Raised when a tool name is already registered or reserved."""
+
     pass
 
 
 class ToolRegistry:
     RESERVED_NAMES: set[str] = {
-        "read_reference", "run_skill_script",
-        "read_skill_asset", "render_template",
+        "read_reference",
+        "run_skill_script",
+        "read_skill_asset",
+        "render_template",
     }
 
     def __init__(self):
@@ -76,22 +79,59 @@ class ToolRegistry:
     def register_from_def(self, def_: ToolDef, handler: Callable) -> None:
         self.register(Tool(definition=def_, handler=handler))
 
-    def register_tool(self, name: str, description: str, parameters: dict, handler: Callable, risk_level: str = "read_only") -> None:
+    def register_mcp_proxy(self, def_: ToolDef, handler: Callable) -> None:
+        name = def_.name
+        if name in self._tools:
+            raise ToolCollisionError(
+                f"Tool '{name}' is already registered. "
+                f"Duplicate tool names are not allowed."
+            )
+        self._tools[name] = Tool(definition=def_, handler=handler)
+
+    def register_tool(
+        self,
+        name: str,
+        description: str,
+        parameters: dict,
+        handler: Callable,
+        risk_level: str = "read_only",
+    ) -> None:
         """Convenience method: register a tool without creating a ToolDef explicitly."""
-        self.register_from_def(ToolDef(name=name, description=description, parameters=parameters, risk_level=risk_level), handler)
+        self.register_from_def(
+            ToolDef(
+                name=name,
+                description=description,
+                parameters=parameters,
+                risk_level=risk_level,
+            ),
+            handler,
+        )
 
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
 
     def get_definitions(self) -> list[dict]:
-        return [{"name": t.definition.name, "description": t.definition.description, "input_schema": t.definition.parameters} for t in self._tools.values()]
+        return [
+            {
+                "name": t.definition.name,
+                "description": t.definition.description,
+                "input_schema": t.definition.parameters,
+            }
+            for t in self._tools.values()
+        ]
 
     def names(self) -> list[str]:
         return list(self._tools.keys())
 
 
 class ToolExecutor:
-    def __init__(self, registry: ToolRegistry, guard: "FilesystemGuard", timeout_ms: int = 30_000, max_output_chars: int = 50_000):
+    def __init__(
+        self,
+        registry: ToolRegistry,
+        guard: "FilesystemGuard",
+        timeout_ms: int = 30_000,
+        max_output_chars: int = 50_000,
+    ):
         self._registry = registry
         self._guard = guard
         self._timeout_ms = timeout_ms
@@ -103,7 +143,9 @@ class ToolExecutor:
     async def execute(self, name: str, args: dict, call_id: str) -> ToolResult:
         tool = self._registry.get(name)
         if tool is None:
-            suggestions = get_close_matches(name, self._registry.names(), n=3, cutoff=0.6)
+            suggestions = get_close_matches(
+                name, self._registry.names(), n=3, cutoff=0.6
+            )
             msg = f"Tool '{name}' not found."
             if suggestions:
                 msg += f" Did you mean: {', '.join(suggestions)}?"
@@ -111,24 +153,38 @@ class ToolExecutor:
 
         errors = validate_schema(tool.definition.parameters, args)
         if errors:
-            return ToolResult.error(call_id, f"Invalid arguments for '{name}':\n" + "\n".join(f"  - {e}" for e in errors))
+            return ToolResult.error(
+                call_id,
+                f"Invalid arguments for '{name}':\n"
+                + "\n".join(f"  - {e}" for e in errors),
+            )
 
         if self._guard and tool.definition.risk_level != "safe":
             path = args.get("path") or args.get("source") or args.get("destination")
             if path:
                 try:
-                    op = "delete" if tool.definition.risk_level == "destructive" else "write" if tool.definition.risk_level == "mutation" else "read"
+                    op = (
+                        "delete"
+                        if tool.definition.risk_level == "destructive"
+                        else "write"
+                        if tool.definition.risk_level == "mutation"
+                        else "read"
+                    )
                     self._guard.guard(path, op)
                 except Exception as e:
                     return ToolResult.error(call_id, str(e))
 
         try:
             if asyncio.iscoroutinefunction(tool.handler):
-                raw = await asyncio.wait_for(tool.handler(args), timeout=self._timeout_ms / 1000)
+                raw = await asyncio.wait_for(
+                    tool.handler(args), timeout=self._timeout_ms / 1000
+                )
             else:
                 raw = tool.handler(args)
         except asyncio.TimeoutError:
-            return ToolResult.error(call_id, f"Tool '{name}' timed out after {self._timeout_ms/1000}s")
+            return ToolResult.error(
+                call_id, f"Tool '{name}' timed out after {self._timeout_ms / 1000}s"
+            )
         except Exception as e:
             return ToolResult.error(call_id, f"Tool '{name}' failed: {e}")
 
@@ -145,7 +201,10 @@ class ToolExecutor:
         else:
             result = str(raw)
         if len(result) > self._max_output_chars:
-            result = result[:self._max_output_chars] + f"\n\n[... truncated at {self._max_output_chars} characters]"
+            result = (
+                result[: self._max_output_chars]
+                + f"\n\n[... truncated at {self._max_output_chars} characters]"
+            )
         return result
 
 
@@ -166,15 +225,21 @@ def validate_schema(schema: dict, args: dict) -> list[str]:
             if expected_type == "string" and not isinstance(value, str):
                 errors.append(f"'{key}' should be a string, got {type(value).__name__}")
             elif expected_type == "integer" and not isinstance(value, int):
-                errors.append(f"'{key}' should be an integer, got {type(value).__name__}")
+                errors.append(
+                    f"'{key}' should be an integer, got {type(value).__name__}"
+                )
             elif expected_type == "number" and not isinstance(value, (int, float)):
                 errors.append(f"'{key}' should be a number, got {type(value).__name__}")
             elif expected_type == "boolean" and not isinstance(value, bool):
-                errors.append(f"'{key}' should be a boolean, got {type(value).__name__}")
+                errors.append(
+                    f"'{key}' should be a boolean, got {type(value).__name__}"
+                )
             elif expected_type == "array" and not isinstance(value, list):
                 errors.append(f"'{key}' should be an array, got {type(value).__name__}")
             elif expected_type == "object" and not isinstance(value, dict):
-                errors.append(f"'{key}' should be an object, got {type(value).__name__}")
+                errors.append(
+                    f"'{key}' should be an object, got {type(value).__name__}"
+                )
             if "enum" in prop and value not in prop["enum"]:
                 errors.append(f"'{key}' must be one of {prop['enum']}, got {value!r}")
     return errors

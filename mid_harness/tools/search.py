@@ -11,15 +11,32 @@ def search_content(args: dict) -> str:
     max_results = args.get("max_results", 100)
 
     try:
-        cmd = ["rg", "--line-number", "--no-heading", "--color=never",
-               "--max-count", str(max_results), "--no-ignore",
-               "--glob", "!.git", "--glob", "!__pycache__", "--glob", "!*.pyc"]
+        cmd = [
+            "rg",
+            "--line-number",
+            "--no-heading",
+            "--color=never",
+            "--max-count",
+            str(max_results),
+            "--no-ignore",
+            "--glob",
+            "!.git",
+            "--glob",
+            "!__pycache__",
+            "--glob",
+            "!*.pyc",
+        ]
         if file_pattern:
             cmd.extend(["--glob", file_pattern])
-        cmd.extend([pattern, path if os.path.isdir(path) else os.path.dirname(path) or "."])
+        cmd.extend(
+            [pattern, path if os.path.isdir(path) else os.path.dirname(path) or "."]
+        )
         result = subprocess.run(
             cmd,
-            capture_output=True, text=True, timeout=10, cwd=path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=path,
         )
         if result.returncode not in (0, 1):
             raise RuntimeError(result.stderr)
@@ -45,7 +62,9 @@ def search_content(args: dict) -> str:
     return result
 
 
-def _fallback_grep(pattern: str, path: str, file_pattern: str | None, max_results: int = 100) -> list[str]:
+def _fallback_grep(
+    pattern: str, path: str, file_pattern: str | None, max_results: int = 100
+) -> list[str]:
     results = []
     try:
         compiled = re.compile(pattern)
@@ -64,11 +83,15 @@ def _fallback_grep(pattern: str, path: str, file_pattern: str | None, max_result
             if file_pattern and not _match_filename(f, file_pattern):
                 continue
             fpath = os.path.join(root, f)
-            results.extend(_grep_file(fpath, compiled, None, max_results - len(results)))
+            results.extend(
+                _grep_file(fpath, compiled, None, max_results - len(results))
+            )
     return results[:max_results]
 
 
-def _grep_file(fpath: str, compiled, file_pattern: str | None, max_results: int | None = None) -> list[str]:
+def _grep_file(
+    fpath: str, compiled, file_pattern: str | None, max_results: int | None = None
+) -> list[str]:
     results = []
     try:
         with open(fpath, "r", encoding="utf-8", errors="replace") as fh:
@@ -91,4 +114,5 @@ def _match_file(line: str, pattern: str) -> bool:
 
 def _match_filename(name: str, pattern: str) -> bool:
     import fnmatch
+
     return fnmatch.fnmatch(os.path.basename(name), pattern)

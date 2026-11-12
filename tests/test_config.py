@@ -37,7 +37,13 @@ def test_prompt_multiple_skills_append():
 
 
 def test_config_provider_field():
-    config = AgentConfig(model="m", api_key="k", workspace=".", provider="deepseek", api_base_url="https://api.deepseek.com/v1")
+    config = AgentConfig(
+        model="m",
+        api_key="k",
+        workspace=".",
+        provider="deepseek",
+        api_base_url="https://api.deepseek.com/v1",
+    )
     assert config.provider == "deepseek"
     assert config.api_base_url == "https://api.deepseek.com/v1"
 

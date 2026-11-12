@@ -80,24 +80,32 @@ class FakeProvider:
 
     async def generate_stream(self, messages, tools=None):
         self.calls += 1
-        for chunk in self.responses[min(self.idx, len(self.responses)-1)]:
+        for chunk in self.responses[min(self.idx, len(self.responses) - 1)]:
             yield chunk
         self.idx += 1
 
     async def generate(self, messages, tools=None):
         self.calls += 1
         from mid_harness._llm import LLMResponse, TokenUsage
-        return LLMResponse(text="final_after_degrade", tool_calls=[], usage=TokenUsage(input_tokens=5, output_tokens=3), finish_reason="stop")
+
+        return LLMResponse(
+            text="final_after_degrade",
+            tool_calls=[],
+            usage=TokenUsage(input_tokens=5, output_tokens=3),
+            finish_reason="stop",
+        )
 
 
 class FakeExecutor:
     def __init__(self, results=None):
         self.results = results or []
         self.idx = 0
+
     def get_definitions(self):
         return []
+
     async def execute(self, name, args, call_id):
-        r = self.results[min(self.idx, len(self.results)-1)]
+        r = self.results[min(self.idx, len(self.results) - 1)]
         self.idx += 1
         return r
 
@@ -107,7 +115,9 @@ async def test_loop_returns_final_answer():
     config = AgentConfig(model="t", api_key="k", workspace="/tmp")
     messages = MessageManager(Prompt("Be helpful."))
     events = EventBus()
-    provider = FakeProvider(responses=[[LLMStreamChunk(type="text_delta", content="Hello!")]])
+    provider = FakeProvider(
+        responses=[[LLMStreamChunk(type="text_delta", content="Hello!")]]
+    )
     executor = FakeExecutor()
     loop = AgentLoop(config, messages, provider, executor, events)
     result = await loop.run("Hi")
@@ -121,10 +131,15 @@ async def test_loop_executes_tool_and_continues():
     messages = MessageManager(Prompt("Be helpful."))
     events = EventBus()
     tc = ToolCallRequest(id="t1", name="echo", arguments={"msg": "hi"})
-    provider = FakeProvider(responses=[
-        [LLMStreamChunk(type="text_delta", content="let me check"), LLMStreamChunk(type="tool_call_end", tool_call=tc)],
-        [LLMStreamChunk(type="text_delta", content="got result")],
-    ])
+    provider = FakeProvider(
+        responses=[
+            [
+                LLMStreamChunk(type="text_delta", content="let me check"),
+                LLMStreamChunk(type="tool_call_end", tool_call=tc),
+            ],
+            [LLMStreamChunk(type="text_delta", content="got result")],
+        ]
+    )
     executor = FakeExecutor(results=[ToolResult.ok("t1", "echo: hi")])
     loop = AgentLoop(config, messages, provider, executor, events)
     result = await loop.run("check")
@@ -138,14 +153,24 @@ async def test_loop_max_iterations_triggers_degraded_finish():
     messages = MessageManager(Prompt("Be helpful."))
     events = EventBus()
     tc = ToolCallRequest(id="t1", name="echo", arguments={"msg": "x"})
-    provider = FakeProvider(responses=[
-        [LLMStreamChunk(type="text_delta", content="a"), LLMStreamChunk(type="tool_call_end", tool_call=tc)],
-        [LLMStreamChunk(type="text_delta", content="b"), LLMStreamChunk(type="tool_call_end", tool_call=tc)],
-    ])
-    executor = FakeExecutor(results=[
-        ToolResult.ok("t1", "ok"),
-        ToolResult.ok("t1", "ok"),
-    ])
+    provider = FakeProvider(
+        responses=[
+            [
+                LLMStreamChunk(type="text_delta", content="a"),
+                LLMStreamChunk(type="tool_call_end", tool_call=tc),
+            ],
+            [
+                LLMStreamChunk(type="text_delta", content="b"),
+                LLMStreamChunk(type="tool_call_end", tool_call=tc),
+            ],
+        ]
+    )
+    executor = FakeExecutor(
+        results=[
+            ToolResult.ok("t1", "ok"),
+            ToolResult.ok("t1", "ok"),
+        ]
+    )
     loop = AgentLoop(config, messages, provider, executor, events)
     result = await loop.run("do stuff")
     assert "final_after_degrade" in result
@@ -153,18 +178,30 @@ async def test_loop_max_iterations_triggers_degraded_finish():
 
 @pytest.mark.asyncio
 async def test_loop_error_budget_exhausted_degrade():
-    config = AgentConfig(model="t", api_key="k", workspace="/tmp", max_errors=2, max_consecutive_errors=2)
+    config = AgentConfig(
+        model="t", api_key="k", workspace="/tmp", max_errors=2, max_consecutive_errors=2
+    )
     messages = MessageManager(Prompt("Be helpful."))
     events = EventBus()
     tc = ToolCallRequest(id="t1", name="failing", arguments={})
-    provider = FakeProvider(responses=[
-        [LLMStreamChunk(type="text_delta", content="try1"), LLMStreamChunk(type="tool_call_end", tool_call=tc)],
-        [LLMStreamChunk(type="text_delta", content="try2"), LLMStreamChunk(type="tool_call_end", tool_call=tc)],
-    ])
-    executor = FakeExecutor(results=[
-        ToolResult.error("t1", "fail1"),
-        ToolResult.error("t1", "fail2"),
-    ])
+    provider = FakeProvider(
+        responses=[
+            [
+                LLMStreamChunk(type="text_delta", content="try1"),
+                LLMStreamChunk(type="tool_call_end", tool_call=tc),
+            ],
+            [
+                LLMStreamChunk(type="text_delta", content="try2"),
+                LLMStreamChunk(type="tool_call_end", tool_call=tc),
+            ],
+        ]
+    )
+    executor = FakeExecutor(
+        results=[
+            ToolResult.error("t1", "fail1"),
+            ToolResult.error("t1", "fail2"),
+        ]
+    )
     loop = AgentLoop(config, messages, provider, executor, events)
     result = await loop.run("do")
     assert "final_after_degrade" in result
@@ -172,16 +209,34 @@ async def test_loop_error_budget_exhausted_degrade():
 
 @pytest.mark.asyncio
 async def test_loop_detector_intervenes():
-    config = AgentConfig(model="t", api_key="k", workspace="/tmp", max_iterations=10, max_errors=20, max_consecutive_errors=20)
+    config = AgentConfig(
+        model="t",
+        api_key="k",
+        workspace="/tmp",
+        max_iterations=10,
+        max_errors=20,
+        max_consecutive_errors=20,
+    )
     messages = MessageManager(Prompt("Be helpful."))
     events = EventBus()
     tc = ToolCallRequest(id="t1", name="stuck", arguments={"path": "/tmp/x"})
-    provider = FakeProvider(responses=[
-        [LLMStreamChunk(type="text_delta", content="a"), LLMStreamChunk(type="tool_call_end", tool_call=tc)],
-        [LLMStreamChunk(type="text_delta", content="b"), LLMStreamChunk(type="tool_call_end", tool_call=tc)],
-        [LLMStreamChunk(type="text_delta", content="c"), LLMStreamChunk(type="tool_call_end", tool_call=tc)],
-        [LLMStreamChunk(type="text_delta", content="fixed")],
-    ])
+    provider = FakeProvider(
+        responses=[
+            [
+                LLMStreamChunk(type="text_delta", content="a"),
+                LLMStreamChunk(type="tool_call_end", tool_call=tc),
+            ],
+            [
+                LLMStreamChunk(type="text_delta", content="b"),
+                LLMStreamChunk(type="tool_call_end", tool_call=tc),
+            ],
+            [
+                LLMStreamChunk(type="text_delta", content="c"),
+                LLMStreamChunk(type="tool_call_end", tool_call=tc),
+            ],
+            [LLMStreamChunk(type="text_delta", content="fixed")],
+        ]
+    )
     fail = ToolResult.error("t1", "fail")
     executor = FakeExecutor(results=[fail, fail, fail, ToolResult.ok("t1", "ok")])
     loop = AgentLoop(config, messages, provider, executor, events)
@@ -199,6 +254,7 @@ async def test_loop_llm_error_terminates():
         async def generate_stream(self, messages, tools=None):
             raise RuntimeError("API down")
             yield
+
         async def generate(self, messages, tools=None):
             raise RuntimeError("API down")
 
@@ -213,12 +269,16 @@ async def test_loop_emits_iteration_events():
     messages = MessageManager(Prompt("Be helpful."))
     events = EventBus()
     iterations = []
+
     async def capture(e):
         if e.type == "iteration":
             iterations.append(e)
+
     events.subscribe(capture)
 
-    provider = FakeProvider(responses=[[LLMStreamChunk(type="text_delta", content="done")]])
+    provider = FakeProvider(
+        responses=[[LLMStreamChunk(type="text_delta", content="done")]]
+    )
     loop = AgentLoop(config, messages, provider, FakeExecutor(), events)
     await loop.run("hi")
     assert len(iterations) == 1

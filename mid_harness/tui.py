@@ -78,10 +78,13 @@ async def run_tui_session(agent, model: str):
 
         if prompt == "/hooks":
             console.print()
-            hooks = agent.list_hooks() if hasattr(agent, 'list_hooks') else []
+            hooks = agent.list_hooks() if hasattr(agent, "list_hooks") else []
             if hooks:
                 for h in hooks:
-                    console.print(f"  {h['name']}  →  {h['event']}  [{h['type']}]  pri={h['priority']}  ({h['source']})", style=c["dim"])
+                    console.print(
+                        f"  {h['name']}  →  {h['event']}  [{h['type']}]  pri={h['priority']}  ({h['source']})",
+                        style=c["dim"],
+                    )
             else:
                 console.print("  No hooks registered.", style=c["dim"])
             console.print()
@@ -109,7 +112,10 @@ async def run_tui_session(agent, model: str):
                 if sessions:
                     console.print(f"  {len(sessions)} session(s):", style=c["dim"])
                     for s in sessions[:10]:
-                        console.print(f"    {s['session_id']}  {s['turns']} turns  {s['model']}  {s['updated'][:19]}", style=c["dim"])
+                        console.print(
+                            f"    {s['session_id']}  {s['turns']} turns  {s['model']}  {s['updated'][:19]}",
+                            style=c["dim"],
+                        )
                 else:
                     console.print("  No saved sessions.", style=c["dim"])
             else:
@@ -133,7 +139,10 @@ async def run_tui_session(agent, model: str):
                     if agent_text.strip():
                         console.print(md(agent_text.strip(), code_theme="github-dark"))
                         agent_text = ""
-                    console.print(f"  [iter {iteration}/{max_iter}  {tok_str} tok  {elapsed}s]", style=c["dim"])
+                    console.print(
+                        f"  [iter {iteration}/{max_iter}  {tok_str} tok  {elapsed}s]",
+                        style=c["dim"],
+                    )
 
                 elif event.type == "text_delta" and event.content:
                     agent_text += event.content
@@ -146,8 +155,11 @@ async def run_tui_session(agent, model: str):
                     if event.content:
                         try:
                             import json
+
                             a = json.loads(event.content)
-                            args = " ".join(f"{k}={str(v)[:40]}" for k, v in list(a.items())[:3])
+                            args = " ".join(
+                                f"{k}={str(v)[:40]}" for k, v in list(a.items())[:3]
+                            )
                         except Exception:
                             pass
                     console.print(f"  ⚡ {event.tool_name}  {args}", style=c["tool"])
@@ -172,6 +184,7 @@ async def run_tui_session(agent, model: str):
 def _rich_available() -> bool:
     try:
         import rich  # noqa: F401
+
         return True
     except ImportError:
         return False

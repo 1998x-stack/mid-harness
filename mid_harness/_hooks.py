@@ -26,9 +26,12 @@ def _validate_handler_signature(handler: Callable) -> None:
     params = list(sig.parameters.values())
 
     # Filter out *args, **kwargs, and default-only params from positional count
-    positional = [p for p in params
-                  if p.kind in (inspect.Parameter.POSITIONAL_ONLY,
-                                inspect.Parameter.POSITIONAL_OR_KEYWORD)]
+    positional = [
+        p
+        for p in params
+        if p.kind
+        in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
 
     has_varargs = any(
         p.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
@@ -67,39 +70,49 @@ def _format_sig(sig: inspect.Signature) -> str:
             parts.append(name)
     return f"({', '.join(parts)})"
 
+
 # ── All valid hook point names ──
-VALID_HOOK_POINTS = frozenset({
-    "agent:init",
-    "session:start",
-    "skill:load",
-    "loop:start", "loop:iteration", "loop:complete",
-    "llm:pre_call", "llm:post_call", "llm:error",
-    "tool:pre_execute", "tool:post_execute", "tool:error",
-})
+VALID_HOOK_POINTS = frozenset(
+    {
+        "agent:init",
+        "session:start",
+        "skill:load",
+        "loop:start",
+        "loop:iteration",
+        "loop:complete",
+        "llm:pre_call",
+        "llm:post_call",
+        "llm:error",
+        "tool:pre_execute",
+        "tool:post_execute",
+        "tool:error",
+    }
+)
 
 ALLOWED_TYPES: dict[str, set[str]] = {
-    "agent:init":        {"post"},
-    "session:start":     {"post"},
-    "skill:load":        {"post"},
-    "loop:start":        {"pre", "post"},
-    "loop:iteration":    {"pre", "post"},
-    "loop:complete":     {"post"},
-    "llm:pre_call":      {"pre"},
-    "llm:post_call":     {"post"},
-    "llm:error":         {"post"},
-    "tool:pre_execute":  {"guard", "pre"},
+    "agent:init": {"post"},
+    "session:start": {"post"},
+    "skill:load": {"post"},
+    "loop:start": {"pre", "post"},
+    "loop:iteration": {"pre", "post"},
+    "loop:complete": {"post"},
+    "llm:pre_call": {"pre"},
+    "llm:post_call": {"post"},
+    "llm:error": {"post"},
+    "tool:pre_execute": {"guard", "pre"},
     "tool:post_execute": {"post"},
-    "tool:error":        {"post"},
+    "tool:error": {"post"},
 }
 
 
 @dataclass
 class HookRegistration:
     """A single registered hook with metadata for ordering."""
+
     name: str
     handler: Callable  # async (HookContext) -> None
     priority: int
-    source: str        # "user" | "skill:{name}"
+    source: str  # "user" | "skill:{name}"
     insertion_order: int = 0  # set by HookSystem for FIFO tiebreaking
     source_rank: int = field(init=False)
 
@@ -124,7 +137,9 @@ class HookContext:
         self.data = copy.copy(data)  # shallow copy — hooks get their own top-level dict
         self._aborted = False
         self._abort_reason: str | None = None
-        self._modifications: set[str] = set()  # keys explicitly modified via ctx.modify()
+        self._modifications: set[str] = (
+            set()
+        )  # keys explicitly modified via ctx.modify()
 
     def abort(self, reason: str) -> None:
         """Abort the operation. Remaining hooks in the same type still run."""
@@ -256,7 +271,9 @@ class HookSystem:
                 else:
                     reg.handler(ctx)
             except Exception as e:
-                logger.warning(f"Guard hook '{reg.name}' raised {type(e).__name__}: {e}")
+                logger.warning(
+                    f"Guard hook '{reg.name}' raised {type(e).__name__}: {e}"
+                )
                 ctx.abort(str(e))
 
     async def emit_pre(self, event: str, ctx: HookContext) -> None:
@@ -292,11 +309,13 @@ class HookSystem:
         for event, type_map in self._hooks.items():
             for hook_type, registrations in type_map.items():
                 for reg in registrations:
-                    result.append({
-                        "name": reg.name,
-                        "event": event,
-                        "type": hook_type,
-                        "priority": reg.priority,
-                        "source": reg.source,
-                    })
+                    result.append(
+                        {
+                            "name": reg.name,
+                            "event": event,
+                            "type": hook_type,
+                            "priority": reg.priority,
+                            "source": reg.source,
+                        }
+                    )
         return result

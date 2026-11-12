@@ -117,6 +117,7 @@ Model Context Protocol client for connecting to external tool servers. MCP serve
 ToolRegistry
 ├── read_file          (Python handler)
 ├── write_file         (Python handler)
+├── edit_file          (Python handler)
 ├── git_log            (MCP proxy → git-server process)
 ├── git_commit         (MCP proxy → git-server process)
 └── query_db           (MCP proxy → postgres-server process)
